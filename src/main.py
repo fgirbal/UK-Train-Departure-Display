@@ -9,6 +9,7 @@ from datetime import datetime
 from PIL import ImageFont, Image
 from helpers import get_device
 from trains import loadDeparturesForStation, loadDestinationsForDeparture, loadDeparturesForStationRTT, loadDestinationsForDepartureRTT
+from tfl import loadDeparturesForStationTfL, loadDestinationsForDepartureTfL
 from luma.core.render import canvas
 from luma.core.virtual import viewport, snapshot
 from open import isRun
@@ -157,6 +158,20 @@ def loadDataRTT(apiConfig, journeyConfig):
     #return False, False, journeyConfig['outOfHoursName']
     return departures, firstDepartureDestinations, stationName
 
+def loadDataTfL(apiConfig, journeyConfig):
+    runHours = [int(x) for x in apiConfig['operatingHours'].split('-')]
+    if isRun(runHours[0], runHours[1]) == False:
+        return False, False, journeyConfig.get('outOfHoursName', 'Service not operating')
+
+    departures, stationName = loadDeparturesForStationTfL(journeyConfig)
+
+    if len(departures) == 0:
+        return False, False, stationName
+
+    firstDepartureDestinations = loadDestinationsForDepartureTfL(journeyConfig, departures[0])
+
+    return departures, firstDepartureDestinations, stationName
+
 def drawBlankSignage(device, width, height, departureStation):
     global stationRenderCount, pauseCount
 
@@ -277,8 +292,11 @@ try:
     pauseCount = 0
     loop_count = 0
 
+    # Load data based on the configured mode/API method
     if config["apiMethod"] == 'rtt':
         data = loadDataRTT(config["rttApi"], config["journey"])
+    elif config["apiMethod"] == 'tfl' or config.get("mode") == 'tfl':
+        data = loadDataTfL(config["tflApi"], config["tflJourney"])
     else:
         data = loadData(config["transportApi"], config["journey"])      
 
@@ -294,10 +312,13 @@ try:
 
     while True:
         if(timeNow - timeAtStart >= config["refreshTime"]):
+            # Reload data based on the configured mode/API method
             if config["apiMethod"] == 'rtt':
                 data = loadDataRTT(config["rttApi"], config["journey"])
+            elif config["apiMethod"] == 'tfl' or config.get("mode") == 'tfl':
+                data = loadDataTfL(config["tflApi"], config["tflJourney"])
             else:
-                data = loadData(config["transportApi"], config["journey"])      
+                data = loadData(config["transportApi"], config["journey"])
                 
             if data[0] == False:
                 virtual = drawBlankSignage(

@@ -1,6 +1,5 @@
 venv
 __pycache__
-config.json
 .vscode/settings.json
 .gitignore
 *.DS_Store
