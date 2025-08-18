@@ -103,34 +103,59 @@ def drawTfLBlankSignage(device, width, height, stationName, font):
 
     return virtualViewport
 
-def drawTfLSignage(device, width, height, departures, stationName, font):
-    """Draw TfL underground-style departure board"""
+def drawTfLSignage(device, width, height, departures, stationName, font_regular, font_bold, rotationStart=None):
+    """Draw TfL underground-style departure board with 4 lines and rotation"""
     device.clear()
     virtualViewport = viewport(device, width=width, height=height)
 
-    # Format departures for display
-    formatted_departures = formatTfLDeparturesForDisplay(departures)
+    # Format all departures for display (get more than we need for rotation)
+    all_formatted = formatTfLDeparturesForDisplay(departures, max_departures=10)
+    
+    # Calculate rotation offset based on time
+    rotation_offset = 0
+    if rotationStart and len(all_formatted) > 4:
+        elapsed_time = time.time() - rotationStart
+        rotation_cycle = int(elapsed_time // 5)  # Change every 5 seconds
+        max_offset = len(all_formatted) - 3  # Maximum offset to show last train in position 4
+        rotation_offset = min(rotation_cycle, max_offset)
+        
+        # Reset to beginning when we've shown all
+        if rotation_offset >= max_offset:
+            rotation_offset = rotation_cycle % (max_offset + 1)
 
     # Clear any existing hotspots
     if len(virtualViewport._hotspots) > 0:
         for hotspot, xy in virtualViewport._hotspots:
             virtualViewport.remove_hotspot(hotspot, xy)
 
-    # Create departure rows
-    y_positions = [8, 20, 32]  # Y positions for the 3 departure rows
+    # Y positions for the 4 departure rows - closer together to fit 4 lines
+    y_positions = [4, 16, 28, 40]  
     
-    for i, departure in enumerate(formatted_departures):
-        if i < 3:  # Only show first 3 departures
+    # Show first train, then rotated 2-4 positions
+    display_indices = [0]  # Always show first train
+    if len(all_formatted) > 1:
+        # Add trains 2-4 with rotation offset
+        for i in range(1, 4):
+            train_index = i + rotation_offset
+            if train_index < len(all_formatted):
+                display_indices.append(train_index)
+    
+    # Create departure rows
+    for i, train_index in enumerate(display_indices):
+        if i < 4 and train_index < len(all_formatted):  # Only show first 4 rows
+            departure = all_formatted[train_index].copy()
+            departure['index'] = str(i + 1)  # Always number 1-4 for display
+            
             departure_row = snapshot(
                 width, 12, 
-                renderTfLDepartureRow(departure, font), 
+                renderTfLDepartureRow(departure, font_regular), 
                 interval=1
             )
             virtualViewport.add_hotspot(departure_row, (0, y_positions[i]))
 
     # Add time row at the bottom
-    time_row = snapshot(width, 12, renderTfLTime(font), interval=1)
-    virtualViewport.add_hotspot(time_row, (0, 50))
+    time_row = snapshot(width, 12, renderTfLTime(font_bold), interval=1)
+    virtualViewport.add_hotspot(time_row, (0, 52))  # Moved up to make room for 4 lines
 
     return virtualViewport
 
@@ -139,7 +164,8 @@ def main():
         config = loadConfig()
 
         device = get_device()
-        font = makeFont("Dot Matrix Bold.ttf", 10)
+        font_bold = makeFont("Dot Matrix Bold.ttf", 10)  # For time display
+        font_regular = makeFont("Dot Matrix Regular.ttf", 10)  # For departures
 
         widgetWidth = 256
         widgetHeight = 64
@@ -150,15 +176,16 @@ def main():
         if data[0] == False:
             # No departures available
             station_name = getTfLStationDisplayName(data[1])
-            virtual = drawTfLBlankSignage(device, widgetWidth, widgetHeight, station_name, font)
+            virtual = drawTfLBlankSignage(device, widgetWidth, widgetHeight, station_name, font_regular)
         else:
             # Display departures
             departures, raw_station_name = data
             station_name = getTfLStationDisplayName(raw_station_name)
-            virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font)
+            virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold)
 
         timeAtStart = time.time()
         timeNow = time.time()
+        rotationStart = time.time()  # Track rotation timing
 
         print(f"TfL Departure Display started for {station_name}")
         print("Press Ctrl+C to stop")
@@ -172,19 +199,28 @@ def main():
                 
                 if data[0] == False:
                     station_name = getTfLStationDisplayName(data[1])
-                    virtual = drawTfLBlankSignage(device, widgetWidth, widgetHeight, station_name, font)
+                    virtual = drawTfLBlankSignage(device, widgetWidth, widgetHeight, station_name, font_regular)
                 else:
                     departures, raw_station_name = data
                     station_name = getTfLStationDisplayName(raw_station_name)
-                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font)
+                    
+                    # Reset rotation when data refreshes
+                    rotationStart = time.time()
+                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold, rotationStart)
                     
                     # Print current departures to console
                     formatted = formatTfLDeparturesForDisplay(departures)
                     print(f"Next departures from {station_name}:")
-                    for dep in formatted:
+                    for dep in formatted[:4]:  # Show 4 departures
                         print(f"  {dep['index']}. {dep['destination']} - {dep['time_display']}")
 
                 timeAtStart = time.time()
+            
+            # Update display with rotation every 5 seconds (but don't refresh data)
+            elif data[0] != False and (timeNow - rotationStart >= 5):
+                departures, raw_station_name = data
+                station_name = getTfLStationDisplayName(raw_station_name)
+                virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold, rotationStart)
 
             timeNow = time.time()
             virtual.refresh()

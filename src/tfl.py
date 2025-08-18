@@ -51,8 +51,8 @@ def loadDeparturesForStationTfL(journeyConfig):
     
     translated_departures = []
     
-    # Take first 5 departures from filtered results
-    for item in filtered_data[:5]:
+    # Take first 10 departures from filtered results for rotation
+    for item in filtered_data[:10]:
         # Convert expected arrival to departure time format
         expected_arrival = datetime.fromisoformat(item['expectedArrival'].replace('Z', '+00:00'))
         aimed_departure_time = expected_arrival.strftime('%H:%M')
@@ -129,14 +129,14 @@ def loadDestinationsForDepartureTfL(journeyConfig, departure_info):
     
     return calling_at
 
-def formatTfLDeparturesForDisplay(departures):
+def formatTfLDeparturesForDisplay(departures, max_departures=3):
     """
     Format TfL departures for the underground-style display
     Returns a list of formatted departure entries
     """
     formatted_departures = []
     
-    for i, departure in enumerate(departures[:3], 1):  # Only take first 3
+    for i, departure in enumerate(departures[:max_departures], 1):  # Take up to max_departures
         # Calculate time to station in minutes
         time_to_station_seconds = departure.get('timeToStation', 0) if 'timeToStation' in departure else 0
         time_to_station_minutes = time_to_station_seconds // 60

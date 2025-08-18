@@ -16,7 +16,7 @@
       "Station": "Stn"
     }
   },
-  "refreshTime": 180,
+  "refreshTime": 30,
   "transportApi": {
     "appId": "",
     "apiKey": "",
