@@ -191,6 +191,8 @@ def main():
         print("Press Ctrl+C to stop")
 
         while True:
+            timeNow = time.time()
+            
             # Refresh data every refreshTime seconds
             if(timeNow - timeAtStart >= config["refreshTime"]):
                 print("Refreshing TfL data...")
@@ -209,20 +211,19 @@ def main():
                     virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold, rotationStart)
                     
                     # Print current departures to console
-                    formatted = formatTfLDeparturesForDisplay(departures)
+                    formatted = formatTfLDeparturesForDisplay(departures, max_departures=10)
                     print(f"Next departures from {station_name}:")
                     for dep in formatted[:4]:  # Show 4 departures
                         print(f"  {dep['index']}. {dep['destination']} - {dep['time_display']}")
 
                 timeAtStart = time.time()
             
-            # Update display with rotation every 5 seconds (but don't refresh data)
-            elif data[0] != False and (timeNow - rotationStart >= 5):
+            # Update display with rotation (but don't refresh data)
+            elif data[0] != False:
                 departures, raw_station_name = data
                 station_name = getTfLStationDisplayName(raw_station_name)
                 virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold, rotationStart)
 
-            timeNow = time.time()
             virtual.refresh()
 
     except KeyboardInterrupt:
