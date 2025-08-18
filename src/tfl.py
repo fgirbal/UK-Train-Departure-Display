@@ -151,7 +151,6 @@ def formatTfLDeparturesForDisplay(departures, max_departures=3):
         destination = departure['destination_name']
         
         formatted_departures.append({
-            'index': str(i),
             'destination': destination,
             'time_display': time_display,
             'line_name': departure.get('line_name', ''),

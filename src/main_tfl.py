@@ -144,7 +144,7 @@ def drawTfLSignage(device, width, height, departures, stationName, font_regular,
     for i, train_index in enumerate(display_indices):
         if i < 4 and train_index < len(all_formatted):  # Only show first 4 rows
             departure = all_formatted[train_index].copy()
-            departure['index'] = str(i + 1)  # Always number 1-4 for display
+            departure['index'] = str(train_index + 1)  # Show actual train number (1-based)
             
             departure_row = snapshot(
                 width, 12, 
@@ -164,7 +164,7 @@ def main():
         config = loadConfig()
 
         device = get_device()
-        font_bold = makeFont("Dot Matrix Bold.ttf", 10)  # For time display
+        font_bold = makeFont("Dot Matrix Bold.ttf", 12)  # Bigger time display
         font_regular = makeFont("Dot Matrix Regular.ttf", 10)  # For departures
 
         widgetWidth = 256
