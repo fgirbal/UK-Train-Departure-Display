@@ -186,12 +186,14 @@ def main():
         timeAtStart = time.time()
         timeNow = time.time()
         rotationStart = time.time()  # Track rotation timing
+        lastRotationUpdate = 0  # Track when we last updated for rotation
 
         print(f"TfL Departure Display started for {station_name}")
         print("Press Ctrl+C to stop")
 
         while True:
             timeNow = time.time()
+            needsUpdate = False
             
             # Refresh data every refreshTime seconds
             if(timeNow - timeAtStart >= config["refreshTime"]):
@@ -208,6 +210,7 @@ def main():
                     
                     # Reset rotation when data refreshes
                     rotationStart = time.time()
+                    lastRotationUpdate = 0
                     virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold, rotationStart)
                     
                     # Print current departures to console
@@ -217,14 +220,27 @@ def main():
                         print(f"  {dep['index']}. {dep['destination']} - {dep['time_display']}")
 
                 timeAtStart = time.time()
+                needsUpdate = True
             
-            # Update display with rotation (but don't refresh data)
+            # Check if rotation position has changed (every 5 seconds)
             elif data[0] != False:
-                departures, raw_station_name = data
-                station_name = getTfLStationDisplayName(raw_station_name)
-                virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold, rotationStart)
+                elapsed_time = timeNow - rotationStart
+                current_rotation_cycle = int(elapsed_time // 5)
+                
+                if current_rotation_cycle != lastRotationUpdate:
+                    print(f"Rotating display (cycle {current_rotation_cycle})")
+                    departures, raw_station_name = data
+                    station_name = getTfLStationDisplayName(raw_station_name)
+                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold, rotationStart)
+                    lastRotationUpdate = current_rotation_cycle
+                    needsUpdate = True
 
-            virtual.refresh()
+            # Only refresh display when something actually changed
+            if needsUpdate:
+                virtual.refresh()
+            
+            # Sleep briefly to avoid busy waiting
+            time.sleep(0.1)
 
     except KeyboardInterrupt:
         print("\nTfL Display stopped")
