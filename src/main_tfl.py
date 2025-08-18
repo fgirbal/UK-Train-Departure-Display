@@ -36,7 +36,7 @@ def renderTfLDepartureRow(departure_info, font):
         draw.text((0, 0), text=index, font=font, fill="yellow")
         
         # Draw destination in the middle
-        draw.text((20, 0), text=destination, font=font, fill="yellow")
+        draw.text((15, 0), text=destination, font=font, fill="yellow")
         
         # Calculate width for right-aligned time
         time_width, _ = draw.textsize(time_display, font)
@@ -103,11 +103,8 @@ def drawTfLBlankSignage(device, width, height, stationName, font):
 
     return virtualViewport
 
-def drawTfLSignage(device, width, height, departures, stationName, font_regular, font_bold, rotationStart=None):
-    """Draw TfL underground-style departure board with 4 lines and rotation"""
-    device.clear()
-    virtualViewport = viewport(device, width=width, height=height)
-
+def calculateDisplayTrains(departures, rotationStart=None):
+    """Calculate which 4 trains to display with rotation logic"""
     # Format all departures for display (get more than we need for rotation)
     all_formatted = formatTfLDeparturesForDisplay(departures, max_departures=10)
     
@@ -123,14 +120,6 @@ def drawTfLSignage(device, width, height, departures, stationName, font_regular,
         if rotation_offset >= max_offset:
             rotation_offset = rotation_cycle % (max_offset + 1)
 
-    # Clear any existing hotspots
-    if len(virtualViewport._hotspots) > 0:
-        for hotspot, xy in virtualViewport._hotspots:
-            virtualViewport.remove_hotspot(hotspot, xy)
-
-    # Y positions for the 4 departure rows - closer together to fit 4 lines
-    y_positions = [4, 16, 28, 40]  
-    
     # Show first train, then rotated 2-4 positions
     display_indices = [0]  # Always show first train
     if len(all_formatted) > 1:
@@ -140,18 +129,37 @@ def drawTfLSignage(device, width, height, departures, stationName, font_regular,
             if train_index < len(all_formatted):
                 display_indices.append(train_index)
     
-    # Create departure rows
-    for i, train_index in enumerate(display_indices):
-        if i < 4 and train_index < len(all_formatted):  # Only show first 4 rows
+    # Build the display trains with correct indices
+    display_trains = []
+    for train_index in display_indices:
+        if train_index < len(all_formatted):
             departure = all_formatted[train_index].copy()
             departure['index'] = str(train_index + 1)  # Show actual train number (1-based)
-            
-            departure_row = snapshot(
-                width, 12, 
-                renderTfLDepartureRow(departure, font_regular), 
-                interval=1
-            )
-            virtualViewport.add_hotspot(departure_row, (0, y_positions[i]))
+            display_trains.append(departure)
+    
+    return display_trains, display_indices
+
+def drawTfLSignage(device, width, height, display_trains, stationName, font_regular, font_bold):
+    """Draw TfL underground-style departure board with 4 lines"""
+    device.clear()
+    virtualViewport = viewport(device, width=width, height=height)
+
+    # Clear any existing hotspots
+    if len(virtualViewport._hotspots) > 0:
+        for hotspot, xy in virtualViewport._hotspots:
+            virtualViewport.remove_hotspot(hotspot, xy)
+
+    # Y positions for the 4 departure rows - closer together to fit 4 lines
+    y_positions = [4, 16, 28, 40]  
+    
+    # Create departure rows
+    for i, train_info in enumerate(display_trains[:4]):  # Only show first 4 rows
+        departure_row = snapshot(
+            width, 12, 
+            renderTfLDepartureRow(train_info, font_regular), 
+            interval=1
+        )
+        virtualViewport.add_hotspot(departure_row, (0, y_positions[i]))
 
     # Add time row at the bottom
     time_row = snapshot(width, 12, renderTfLTime(font_bold), interval=1)
@@ -181,7 +189,8 @@ def main():
             # Display departures
             departures, raw_station_name = data
             station_name = getTfLStationDisplayName(raw_station_name)
-            virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold)
+            display_trains, display_indices = calculateDisplayTrains(departures)
+            virtual = drawTfLSignage(device, widgetWidth, widgetHeight, display_trains, station_name, font_regular, font_bold)
 
         timeAtStart = time.time()
         timeNow = time.time()
@@ -212,13 +221,13 @@ def main():
                     # Reset rotation when data refreshes
                     rotationStart = time.time()
                     lastRotationUpdate = 0
-                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold, rotationStart)
+                    display_trains, display_indices = calculateDisplayTrains(departures, rotationStart)
+                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, display_trains, station_name, font_regular, font_bold)
                     
                     # Print current departures to console
-                    formatted = formatTfLDeparturesForDisplay(departures, max_departures=10)
                     print(f"Next departures from {station_name}:")
-                    for dep in formatted[:4]:  # Show 4 departures
-                        print(f"  {dep['index']}. {dep['destination']} - {dep['time_display']}")
+                    for train_info in display_trains:
+                        print(f"  {train_info['index']}. {train_info['destination']} - {train_info['time_display']}")
 
                 timeAtStart = time.time()
                 lastTimeUpdate = int(timeNow)
@@ -233,7 +242,8 @@ def main():
                     print(f"Rotating display (cycle {current_rotation_cycle})")
                     departures, raw_station_name = data
                     station_name = getTfLStationDisplayName(raw_station_name)
-                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, departures, station_name, font_regular, font_bold, rotationStart)
+                    display_trains, display_indices = calculateDisplayTrains(departures, rotationStart)
+                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, display_trains, station_name, font_regular, font_bold)
                     lastRotationUpdate = current_rotation_cycle
                     needsUpdate = True
 
