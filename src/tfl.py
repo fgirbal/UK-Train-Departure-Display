@@ -33,10 +33,26 @@ def loadDeparturesForStationTfL(journeyConfig):
     # Sort by expected arrival time
     data.sort(key=lambda x: x['expectedArrival'])
     
+    # Apply filters if specified
+    filtered_data = data
+    
+    # Filter by line if specified
+    if journeyConfig.get("filterByLine"):
+        line_filter = journeyConfig["filterByLine"].lower()
+        filtered_data = [item for item in filtered_data 
+                        if item.get('lineName', '').lower() == line_filter]
+    
+    # Filter by direction if specified  
+    if journeyConfig.get("filterByDirection"):
+        direction_filter = journeyConfig["filterByDirection"].lower()
+        filtered_data = [item for item in filtered_data 
+                        if (direction_filter in item.get('direction', '').lower() or
+                            direction_filter in item.get('platformName', '').lower())]
+    
     translated_departures = []
     
-    # Take first 5 departures
-    for item in data[:5]:
+    # Take first 5 departures from filtered results
+    for item in filtered_data[:5]:
         # Convert expected arrival to departure time format
         expected_arrival = datetime.fromisoformat(item['expectedArrival'].replace('Z', '+00:00'))
         aimed_departure_time = expected_arrival.strftime('%H:%M')
@@ -72,7 +88,8 @@ def loadDeparturesForStationTfL(journeyConfig):
             'platform': platform,
             'line_name': item.get('lineName', ''),
             'towards': item.get('towards', ''),
-            'current_location': item.get('currentLocation', '')
+            'current_location': item.get('currentLocation', ''),
+            'timeToStation': time_to_station_seconds  # Add this for the new display
         })
     
     # Extract station name
@@ -111,3 +128,40 @@ def loadDestinationsForDepartureTfL(journeyConfig, departure_info):
         calling_at[0] = calling_at[0] + ' only.'
     
     return calling_at
+
+def formatTfLDeparturesForDisplay(departures):
+    """
+    Format TfL departures for the underground-style display
+    Returns a list of formatted departure entries
+    """
+    formatted_departures = []
+    
+    for i, departure in enumerate(departures[:3], 1):  # Only take first 3
+        # Calculate time to station in minutes
+        time_to_station_seconds = departure.get('timeToStation', 0) if 'timeToStation' in departure else 0
+        time_to_station_minutes = time_to_station_seconds // 60
+        
+        # Format the time display
+        if time_to_station_minutes <= 1:
+            time_display = "Due"
+        else:
+            time_display = f"{time_to_station_minutes} mins"
+        
+        # Clean up destination name
+        destination = departure['destination_name']
+        
+        formatted_departures.append({
+            'index': str(i),
+            'destination': destination,
+            'time_display': time_display,
+            'line_name': departure.get('line_name', ''),
+            'platform': departure.get('platform', '')
+        })
+    
+    return formatted_departures
+
+def getTfLStationDisplayName(station_name):
+    """
+    Format station name for display (remove 'Underground Station' suffix)
+    """
+    return station_name.replace(' Underground Station', '').replace(' Station', '')

@@ -9,6 +9,8 @@
   },
   "tflJourney": {
     "departureStation": "940GZZLUCTN",
+    "filterByLine": null,
+    "filterByDirection": null,
     "stationAbbr": {
       "Underground Station": "Stn",
       "Station": "Stn"
