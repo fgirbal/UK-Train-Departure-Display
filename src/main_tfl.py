@@ -60,9 +60,9 @@ def renderTfLTime(font):
 
 def loadTfLData(apiConfig, journeyConfig):
     """Load TfL data with operating hours check"""
-    runHours = [int(x) for x in apiConfig['operatingHours'].split('-')]
-    if isRun(runHours[0], runHours[1]) == False:
-        return False, journeyConfig.get('outOfHoursName', 'Service not operating')
+    # runHours = [int(x) for x in apiConfig['operatingHours'].split('-')]
+    # if isRun(runHours[0], runHours[1]) == False:
+    #     return False, journeyConfig.get('outOfHoursName', 'Service not operating')
 
     departures, stationName = loadDeparturesForStationTfL(journeyConfig)
 
