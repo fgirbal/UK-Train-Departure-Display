@@ -44,7 +44,7 @@ def renderTfLDepartureRow(departure_info, font):
         # Draw platform after index
         x_pos = 10
         if platform_display:
-            draw.text((x_pos, 0), text=platform_display, font=font, fill="yellow")
+            draw.text((x_pos, 0), text=platform_display, font=font, fill="blue")
             platform_width, _ = draw.textsize(platform_display, font)
             x_pos += platform_width + 10  # Add some spacing
         
@@ -313,15 +313,8 @@ def main():
                         print(f"  {train_info['index']}. {train_info['destination']} - {train_info['time_display']}")
 
                 timeAtStart = time.time()
-            
-            # Continuously update display (rotation happens inside drawTfLSignage)
-            # elif data[0] != False:
-            #     departures, raw_station_name = data
-            #     station_name = getTfLStationDisplayName(raw_station_name)
-            #     virtual = drawTfLSignage(device, widgetWidth, widgetHeight, [], station_name, font_regular, font_bold)
 
             virtual.refresh()
-            # time.sleep(0.1)  # Small delay to avoid excessive CPU usage
 
     except KeyboardInterrupt:
         print("\nTfL Display stopped")
