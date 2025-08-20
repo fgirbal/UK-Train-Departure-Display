@@ -158,7 +158,7 @@ def drawTfLSignage(device, width, height, display_trains, stationName, font_regu
             virtualViewport.remove_hotspot(hotspot, xy)
 
     # Y positions for the 4 departure rows - closer together to fit 4 lines
-    y_positions = [2, 15, 28, 41]  
+    y_positions = [0, 14, 28, 42]  
     
     # Create departure rows
     for i, train_info in enumerate(display_trains[:4]):  # Only show first 4 rows
