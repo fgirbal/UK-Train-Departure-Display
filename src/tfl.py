@@ -150,11 +150,16 @@ def formatTfLDeparturesForDisplay(departures, max_departures=3):
         # Clean up destination name
         destination = departure['destination_name']
         
+        # Get platform information
+        platform = departure.get('platform', '')
+        platform_display = f"Plat. {platform}" if platform else ""
+        
         formatted_departures.append({
             'destination': destination,
             'time_display': time_display,
             'line_name': departure.get('line_name', ''),
-            'platform': departure.get('platform', '')
+            'platform': platform,
+            'platform_display': platform_display
         })
     
     return formatted_departures

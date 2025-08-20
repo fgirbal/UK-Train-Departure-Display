@@ -26,17 +26,25 @@ def makeFont(name, size):
     return ImageFont.truetype(font_path, size)
 
 def renderTfLDepartureRow(departure_info, font):
-    """Render a single departure row: [index] [destination] [time]"""
+    """Render a single departure row: [index] [platform] [destination] [time]"""
     def drawText(draw, width, height):
         index = departure_info['index']
         destination = departure_info['destination']
         time_display = departure_info['time_display']
+        platform_display = departure_info.get('platform_display', '')
         
         # Draw index on the left
         draw.text((0, 0), text=index, font=font, fill="yellow")
         
-        # Draw destination in the middle
-        draw.text((15, 0), text=destination, font=font, fill="yellow")
+        # Draw platform after index
+        x_pos = 15
+        if platform_display:
+            draw.text((x_pos, 0), text=platform_display, font=font, fill="yellow")
+            platform_width, _ = draw.textsize(platform_display, font)
+            x_pos += platform_width + 5  # Add some spacing
+        
+        # Draw destination after platform
+        draw.text((x_pos, 0), text=destination, font=font, fill="yellow")
         
         # Calculate width for right-aligned time
         time_width, _ = draw.textsize(time_display, font)
