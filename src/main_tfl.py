@@ -15,6 +15,9 @@ g_last_rotation_time = 0
 g_rotation_start_index = 1  # Index for row 2 (0-based, so 1 = second train)
 g_display_trains_cache = []
 
+# Global font dictionary
+g_fonts = {}
+
 def loadConfig():
     with open('config.json', 'r') as jsonConfig:
         data = json.load(jsonConfig)
@@ -30,7 +33,16 @@ def makeFont(name, size):
     )
     return ImageFont.truetype(font_path, size)
 
-def renderTfLDepartureRow(departure_info, font):
+def initializeFonts():
+    """Initialize the global font dictionary"""
+    global g_fonts
+    g_fonts = {
+        'big_bold': makeFont("Dot Matrix Bold.ttf", 17),
+        'small_regular': makeFont("Dot Matrix Regular.ttf", 10),
+        'small_bold': makeFont("Dot Matrix Bold.ttf", 10)
+    }
+
+def renderTfLDepartureRow(departure_info):
     """Render a single departure row: [index] [platform] [destination] [time]"""
     def drawText(draw, width, height):
         index = departure_info['index']
@@ -39,27 +51,28 @@ def renderTfLDepartureRow(departure_info, font):
         platform_display = departure_info.get('platform_display', '')
         
         # Draw index on the left
-        draw.text((0, 0), text=index, font=font, fill="yellow")
+        draw.text((0, 0), text=index, font=g_fonts['small_bold'], fill="yellow")
         
         # Draw platform after index
         x_pos = 10
         if platform_display:
-            draw.text((x_pos, 0), text=platform_display, font=font, fill="blue")
-            platform_width, _ = draw.textsize(platform_display, font)
+            draw.text((x_pos, 0), text=platform_display, font=g_fonts['small_regular'], fill="yellow")
+            platform_width, _ = draw.textsize(platform_display, g_fonts['small_regular'])
             x_pos += platform_width + 10  # Add some spacing
         
         # Draw destination after platform
-        draw.text((x_pos, 0), text=destination, font=font, fill="yellow")
+        draw.text((x_pos, 0), text=destination, font=g_fonts['small_regular'], fill="yellow")
         
         # Calculate width for right-aligned time
-        time_width, _ = draw.textsize(time_display, font)
-        draw.text((width - time_width, 0), text=time_display, font=font, fill="yellow")
+        time_width, _ = draw.textsize(time_display, g_fonts['small_regular'])
+        draw.text((width - time_width, 0), text=time_display, font=g_fonts['small_regular'], fill="yellow")
     
     return drawText
 
-def renderTfLTime(font):
+def renderTfLTime():
     """Render centered time in HH:MM:SS format"""
     def drawText(draw, width, height):
+        font = g_fonts['big_bold']
         now = datetime.now()
         time_str = now.strftime('%H:%M:%S')
         
@@ -84,18 +97,20 @@ def loadTfLData(apiConfig, journeyConfig):
 
     return departures, stationName
 
-def drawTfLBlankSignage(device, width, height, stationName, font):
+def drawTfLBlankSignage(device, width, height, stationName):
     """Draw blank signage when no departures available"""
     device.clear()
     virtualViewport = viewport(device, width=width, height=height)
 
     def renderStationName(draw, canvas_width, canvas_height):
+        font = g_fonts['small_regular']
         text = f"No departures from {stationName}"
         text_width, _ = draw.textsize(text, font)
         x_pos = (canvas_width - text_width) // 2
         draw.text((x_pos, 0), text=text, font=font, fill="yellow")
 
     def renderTime(draw, canvas_width, canvas_height):
+        font = g_fonts['small_regular']
         now = datetime.now()
         time_str = now.strftime('%H:%M:%S')
         time_width, _ = draw.textsize(time_str, font)
@@ -152,7 +167,7 @@ def calculateDisplayTrains(departures, rotationStart=None):
     
     return display_trains, display_indices
 
-def renderTfLDepartureRotationRow(row_number, font_regular):
+def renderTfLDepartureRotationRow(row_number):
     """Render function for a specific rotating row (2, 3, or 4)"""
     def drawText(draw, width, height):
         global g_last_rotation_time, g_rotation_start_index, g_display_trains_cache
@@ -180,7 +195,7 @@ def renderTfLDepartureRotationRow(row_number, font_regular):
             train['index'] = str(train_index + 1)  # Show actual train number (1-based)
             
             # Render this train row using the existing function
-            renderTfLDepartureRow(train, font_regular)(draw, width, height)
+            renderTfLDepartureRow(train)(draw, width, height)
     
     return drawText
 
@@ -217,7 +232,7 @@ def precomputeDisplayTrains(departures):
     g_rotation_start_index = 1
     g_last_rotation_time = time.time()
 
-def drawTfLSignage(device, width, height, display_trains, stationName, font_regular, font_bold, n_rows = 4):
+def drawTfLSignage(device, width, height, display_trains, stationName, n_rows = 4):
     """Draw TfL underground-style departure board with n_rows lines"""
     device.clear()
     virtualViewport = viewport(device, width=width, height=height)
@@ -235,7 +250,7 @@ def drawTfLSignage(device, width, height, display_trains, stationName, font_regu
         first_train['index'] = '1'
         first_train_row = snapshot(
             width, 12,
-            renderTfLDepartureRow(first_train, font_regular),
+            renderTfLDepartureRow(first_train),
             interval=1
         )
         virtualViewport.add_hotspot(first_train_row, (0, 0))
@@ -245,13 +260,13 @@ def drawTfLSignage(device, width, height, display_trains, stationName, font_regu
         y_pos = (row_num - 1) * line_spacing
         rotation_row = snapshot(
             width, 12,
-            renderTfLDepartureRotationRow(row_num, font_regular),
+            renderTfLDepartureRotationRow(row_num),
             interval=1
         )
         virtualViewport.add_hotspot(rotation_row, (0, y_pos))
 
     # Add time row at the bottom
-    time_row = snapshot(width, 12, renderTfLTime(font_bold), interval=1)
+    time_row = snapshot(width, 12, renderTfLTime(), interval=1)
     virtualViewport.add_hotspot(time_row, (0, height - 14))
 
     return virtualViewport
@@ -260,10 +275,10 @@ def main():
     try:
         config = loadConfig()
 
-        device = get_device()
-        font_bold = makeFont("Dot Matrix Bold.ttf", 17)  # Bigger time display
-        font_regular = makeFont("Dot Matrix Regular.ttf", 10)  # For departures
+        # Initialize fonts
+        initializeFonts()
 
+        device = get_device()
         widgetWidth = 256
         widgetHeight = 64
 
@@ -273,13 +288,13 @@ def main():
         if data[0] == False:
             # No departures available
             station_name = getTfLStationDisplayName(data[1])
-            virtual = drawTfLBlankSignage(device, widgetWidth, widgetHeight, station_name, font_regular)
+            virtual = drawTfLBlankSignage(device, widgetWidth, widgetHeight, station_name)
         else:
             # Display departures
             departures, raw_station_name = data
             station_name = getTfLStationDisplayName(raw_station_name)
             precomputeDisplayTrains(departures)
-            virtual = drawTfLSignage(device, widgetWidth, widgetHeight, [], station_name, font_regular, font_bold)
+            virtual = drawTfLSignage(device, widgetWidth, widgetHeight, [], station_name)
 
         timeAtStart = time.time()
         
@@ -297,14 +312,14 @@ def main():
                 
                 if data[0] == False:
                     station_name = getTfLStationDisplayName(data[1])
-                    virtual = drawTfLBlankSignage(device, widgetWidth, widgetHeight, station_name, font_regular)
+                    virtual = drawTfLBlankSignage(device, widgetWidth, widgetHeight, station_name)
                 else:
                     departures, raw_station_name = data
                     station_name = getTfLStationDisplayName(raw_station_name)
                     
                     # Reset rotation and precompute new display data
                     precomputeDisplayTrains(departures)
-                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, [], station_name, font_regular, font_bold)
+                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, [], station_name)
                     
                     # Print current departures to console
                     current_trains = getCurrentDisplayTrains()
