@@ -152,7 +152,7 @@ def formatTfLDeparturesForDisplay(departures, max_departures=3):
         
         # Get platform information
         platform = departure.get('platform', '')
-        platform_display = f"Plat {platform}" if platform else ""
+        platform_display = f"Plat. {platform}" if platform else ""
         
         formatted_departures.append({
             'destination': destination,

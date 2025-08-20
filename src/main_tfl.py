@@ -61,7 +61,7 @@ def renderTfLDepartureRow(departure_info, font):
         #     x_pos += platform_width + 10  # Add some spacing
         
         # Draw destination after platform
-        draw.text((x_pos, 0), text=destination + f"({platform_display})", font=font, fill="yellow")
+        draw.text((x_pos, 0), text=destination + f" ({platform_display})", font=font, fill="yellow")
         
         # Calculate width for right-aligned time
         time_width, _ = draw.textsize(time_display, font)
