@@ -147,8 +147,8 @@ def calculateDisplayTrains(departures, rotationStart=None):
     
     return display_trains, display_indices
 
-def drawTfLSignage(device, width, height, display_trains, stationName, font_regular, font_bold):
-    """Draw TfL underground-style departure board with 4 lines"""
+def drawTfLSignage(device, width, height, display_trains, stationName, font_regular, font_bold, n_rows = 4):
+    """Draw TfL underground-style departure board with n_rows lines"""
     device.clear()
     virtualViewport = viewport(device, width=width, height=height)
 
@@ -157,11 +157,11 @@ def drawTfLSignage(device, width, height, display_trains, stationName, font_regu
         for hotspot, xy in virtualViewport._hotspots:
             virtualViewport.remove_hotspot(hotspot, xy)
 
-    # Y positions for the 4 departure rows - closer together to fit 4 lines
-    y_positions = [0, 14, 28, 42]  
-    
+    line_spacing = 12
+    y_positions = [i * line_spacing for i in range(n_rows)]
+
     # Create departure rows
-    for i, train_info in enumerate(display_trains[:4]):  # Only show first 4 rows
+    for i, train_info in enumerate(display_trains[:n_rows]):
         departure_row = snapshot(
             width, 12, 
             renderTfLDepartureRow(train_info, font_regular), 
@@ -171,7 +171,7 @@ def drawTfLSignage(device, width, height, display_trains, stationName, font_regu
 
     # Add time row at the bottom
     time_row = snapshot(width, 12, renderTfLTime(font_bold), interval=1)
-    virtualViewport.add_hotspot(time_row, (0, 52))  # Moved up to make room for 4 lines
+    virtualViewport.add_hotspot(time_row, (0, height - 14))
 
     return virtualViewport
 
@@ -180,8 +180,8 @@ def main():
         config = loadConfig()
 
         device = get_device()
-        font_bold = makeFont("Dot Matrix Bold.ttf", 14)  # Bigger time display
-        font_regular = makeFont("Dot Matrix Regular.ttf", 11)  # For departures
+        font_bold = makeFont("Dot Matrix Bold.ttf", 17)  # Bigger time display
+        font_regular = makeFont("Dot Matrix Regular.ttf", 10)  # For departures
 
         widgetWidth = 256
         widgetHeight = 64
