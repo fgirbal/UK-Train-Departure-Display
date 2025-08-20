@@ -42,7 +42,7 @@ def initializeFonts():
         'small_bold': makeFont("Dot Matrix Bold.ttf", 10)
     }
 
-def renderTfLDepartureRow(departure_info):
+def renderTfLDepartureRow(departure_info, font):
     """Render a single departure row: [index] [platform] [destination] [time]"""
     def drawText(draw, width, height):
         index = departure_info['index']
@@ -51,21 +51,21 @@ def renderTfLDepartureRow(departure_info):
         platform_display = departure_info.get('platform_display', '')
         
         # Draw index on the left
-        draw.text((0, 0), text=index, font=g_fonts['small_bold'], fill="yellow")
+        draw.text((0, 0), text=index, font=font, fill="yellow")
         
         # Draw platform after index
         x_pos = 10
         if platform_display:
-            draw.text((x_pos, 0), text=platform_display, font=g_fonts['small_regular'], fill="yellow")
-            platform_width, _ = draw.textsize(platform_display, g_fonts['small_regular'])
+            draw.text((x_pos, 0), text=platform_display, font=font, fill="yellow")
+            platform_width, _ = draw.textsize(platform_display, font)
             x_pos += platform_width + 10  # Add some spacing
         
         # Draw destination after platform
-        draw.text((x_pos, 0), text=destination, font=g_fonts['small_regular'], fill="yellow")
+        draw.text((x_pos, 0), text=destination, font=font, fill="yellow")
         
         # Calculate width for right-aligned time
-        time_width, _ = draw.textsize(time_display, g_fonts['small_regular'])
-        draw.text((width - time_width, 0), text=time_display, font=g_fonts['small_regular'], fill="yellow")
+        time_width, _ = draw.textsize(time_display, font)
+        draw.text((width - time_width, 0), text=time_display, font=font, fill="yellow")
     
     return drawText
 
@@ -195,8 +195,8 @@ def renderTfLDepartureRotationRow(row_number):
             train['index'] = str(train_index + 1)  # Show actual train number (1-based)
             
             # Render this train row using the existing function
-            renderTfLDepartureRow(train)(draw, width, height)
-    
+            renderTfLDepartureRow(train, g_fonts['small_regular'])(draw, width, height)
+
     return drawText
 
 def getCurrentDisplayTrains():
@@ -250,7 +250,7 @@ def drawTfLSignage(device, width, height, display_trains, stationName, n_rows = 
         first_train['index'] = '1'
         first_train_row = snapshot(
             width, 12,
-            renderTfLDepartureRow(first_train),
+            renderTfLDepartureRow(first_train, g_fonts['small_bold']),
             interval=1
         )
         virtualViewport.add_hotspot(first_train_row, (0, 0))
