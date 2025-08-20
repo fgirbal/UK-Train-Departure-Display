@@ -37,11 +37,11 @@ def renderTfLDepartureRow(departure_info, font):
         draw.text((0, 0), text=index, font=font, fill="yellow")
         
         # Draw platform after index
-        x_pos = 15
+        x_pos = 10
         if platform_display:
             draw.text((x_pos, 0), text=platform_display, font=font, fill="yellow")
             platform_width, _ = draw.textsize(platform_display, font)
-            x_pos += platform_width + 5  # Add some spacing
+            x_pos += platform_width + 10  # Add some spacing
         
         # Draw destination after platform
         draw.text((x_pos, 0), text=destination, font=font, fill="yellow")
