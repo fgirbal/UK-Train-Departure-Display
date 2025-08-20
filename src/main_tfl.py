@@ -158,7 +158,7 @@ def drawTfLSignage(device, width, height, display_trains, stationName, font_regu
             virtualViewport.remove_hotspot(hotspot, xy)
 
     # Y positions for the 4 departure rows - closer together to fit 4 lines
-    y_positions = [4, 16, 28, 40]  
+    y_positions = [2, 15, 28, 41]  
     
     # Create departure rows
     for i, train_info in enumerate(display_trains[:4]):  # Only show first 4 rows
@@ -180,8 +180,8 @@ def main():
         config = loadConfig()
 
         device = get_device()
-        font_bold = makeFont("Dot Matrix Bold.ttf", 12)  # Bigger time display
-        font_regular = makeFont("Dot Matrix Regular.ttf", 10)  # For departures
+        font_bold = makeFont("Dot Matrix Bold.ttf", 14)  # Bigger time display
+        font_regular = makeFont("Dot Matrix Regular.ttf", 11)  # For departures
 
         widgetWidth = 256
         widgetHeight = 64
