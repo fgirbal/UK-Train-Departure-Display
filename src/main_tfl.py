@@ -10,6 +10,11 @@ from luma.core.render import canvas
 from luma.core.virtual import viewport, snapshot
 from open import isRun
 
+# Global variables for smooth rotation tracking
+g_last_rotation_time = 0
+g_rotation_start_index = 1  # Index for row 2 (0-based, so 1 = second train)
+g_display_trains_cache = []
+
 def loadConfig():
     with open('config.json', 'r') as jsonConfig:
         data = json.load(jsonConfig)
@@ -147,6 +152,71 @@ def calculateDisplayTrains(departures, rotationStart=None):
     
     return display_trains, display_indices
 
+def renderTfLDepartureRotationRow(row_number, font_regular):
+    """Render function for a specific rotating row (2, 3, or 4)"""
+    def drawText(draw, width, height):
+        global g_last_rotation_time, g_rotation_start_index, g_display_trains_cache
+        
+        current_time = time.time()
+        
+        # Check if it's time to rotate (every 5 seconds) - only update on first row check
+        if row_number == 2 and current_time - g_last_rotation_time >= 5.0:
+            # Advance the rotation
+            g_rotation_start_index += 1
+            
+            # Make sure we don't exceed available trains (keep at least 4 trains visible)
+            max_start_index = max(1, len(g_display_trains_cache) - 3)
+            if g_rotation_start_index > max_start_index:
+                g_rotation_start_index = 1  # Reset to beginning
+            
+            g_last_rotation_time = current_time
+            print(f"Rotating display (start index: {g_rotation_start_index})")
+        
+        # Calculate which train to show for this row
+        train_index = g_rotation_start_index + (row_number - 2)  # row 2 = index 0, row 3 = index 1, etc.
+        
+        if train_index < len(g_display_trains_cache):
+            train = g_display_trains_cache[train_index].copy()
+            train['index'] = str(train_index + 1)  # Show actual train number (1-based)
+            
+            # Render this train row using the existing function
+            renderTfLDepartureRow(train, font_regular)(draw, width, height)
+    
+    return drawText
+
+def getCurrentDisplayTrains():
+    """Get current display trains for console output"""
+    global g_rotation_start_index, g_display_trains_cache
+    
+    current_display_trains = []
+    
+    # Always show first train in row 1
+    if len(g_display_trains_cache) > 0:
+        first_train = g_display_trains_cache[0].copy()
+        first_train['index'] = '1'
+        current_display_trains.append(first_train)
+    
+    # Add rotated trains for rows 2-4
+    for i in range(3):  # Rows 2, 3, 4
+        train_index = g_rotation_start_index + i
+        if train_index < len(g_display_trains_cache):
+            train = g_display_trains_cache[train_index].copy()
+            train['index'] = str(train_index + 1)  # Show actual train number (1-based)
+            current_display_trains.append(train)
+    
+    return current_display_trains
+
+def precomputeDisplayTrains(departures):
+    """Pre-compute and cache all formatted train data"""
+    global g_display_trains_cache, g_rotation_start_index, g_last_rotation_time
+    
+    # Format all departures for display
+    g_display_trains_cache = formatTfLDeparturesForDisplay(departures, max_departures=10)
+    
+    # Reset rotation state when new data comes in
+    g_rotation_start_index = 1
+    g_last_rotation_time = time.time()
+
 def drawTfLSignage(device, width, height, display_trains, stationName, font_regular, font_bold, n_rows = 4):
     """Draw TfL underground-style departure board with n_rows lines"""
     device.clear()
@@ -158,16 +228,27 @@ def drawTfLSignage(device, width, height, display_trains, stationName, font_regu
             virtualViewport.remove_hotspot(hotspot, xy)
 
     line_spacing = 12
-    y_positions = [i * line_spacing for i in range(n_rows)]
-
-    # Create departure rows
-    for i, train_info in enumerate(display_trains[:n_rows]):
-        departure_row = snapshot(
-            width, 12, 
-            renderTfLDepartureRow(train_info, font_regular), 
+    
+    # Row 1: Fixed first train
+    if len(g_display_trains_cache) > 0:
+        first_train = g_display_trains_cache[0].copy()
+        first_train['index'] = '1'
+        first_train_row = snapshot(
+            width, 12,
+            renderTfLDepartureRow(first_train, font_regular),
             interval=1
         )
-        virtualViewport.add_hotspot(departure_row, (0, y_positions[i]))
+        virtualViewport.add_hotspot(first_train_row, (0, 0))
+    
+    # Rows 2-4: Rotating trains using individual snapshots
+    for row_num in range(2, min(n_rows + 1, 5)):  # rows 2, 3, 4
+        y_pos = (row_num - 1) * line_spacing
+        rotation_row = snapshot(
+            width, 12,
+            renderTfLDepartureRotationRow(row_num, font_regular),
+            interval=1
+        )
+        virtualViewport.add_hotspot(rotation_row, (0, y_pos))
 
     # Add time row at the bottom
     time_row = snapshot(width, 12, renderTfLTime(font_bold), interval=1)
@@ -197,14 +278,11 @@ def main():
             # Display departures
             departures, raw_station_name = data
             station_name = getTfLStationDisplayName(raw_station_name)
-            display_trains, display_indices = calculateDisplayTrains(departures)
-            virtual = drawTfLSignage(device, widgetWidth, widgetHeight, display_trains, station_name, font_regular, font_bold)
+            precomputeDisplayTrains(departures)
+            virtual = drawTfLSignage(device, widgetWidth, widgetHeight, [], station_name, font_regular, font_bold)
 
         timeAtStart = time.time()
-        timeNow = time.time()
-        rotationStart = time.time()  # Track rotation timing
-        lastRotationUpdate = 0  # Track when we last updated for rotation
-
+        
         print(f"TfL Departure Display started for {station_name}")
         print("Press Ctrl+C to stop")
 
@@ -224,33 +302,26 @@ def main():
                     departures, raw_station_name = data
                     station_name = getTfLStationDisplayName(raw_station_name)
                     
-                    # Reset rotation when data refreshes
-                    rotationStart = time.time()
-                    lastRotationUpdate = 0
-                    display_trains, display_indices = calculateDisplayTrains(departures, rotationStart)
-                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, display_trains, station_name, font_regular, font_bold)
+                    # Reset rotation and precompute new display data
+                    precomputeDisplayTrains(departures)
+                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, [], station_name, font_regular, font_bold)
                     
                     # Print current departures to console
+                    current_trains = getCurrentDisplayTrains()
                     print(f"Next departures from {station_name}:")
-                    for train_info in display_trains:
+                    for train_info in current_trains:
                         print(f"  {train_info['index']}. {train_info['destination']} - {train_info['time_display']}")
 
                 timeAtStart = time.time()
             
-            # Check if rotation position has changed (every 5 seconds)
-            elif data[0] != False:
-                elapsed_time = timeNow - rotationStart
-                current_rotation_cycle = int(elapsed_time // 5)
-                
-                if current_rotation_cycle != lastRotationUpdate:
-                    print(f"Rotating display (cycle {current_rotation_cycle})")
-                    departures, raw_station_name = data
-                    station_name = getTfLStationDisplayName(raw_station_name)
-                    display_trains, display_indices = calculateDisplayTrains(departures, rotationStart)
-                    virtual = drawTfLSignage(device, widgetWidth, widgetHeight, display_trains, station_name, font_regular, font_bold)
-                    lastRotationUpdate = current_rotation_cycle
+            # Continuously update display (rotation happens inside drawTfLSignage)
+            # elif data[0] != False:
+            #     departures, raw_station_name = data
+            #     station_name = getTfLStationDisplayName(raw_station_name)
+            #     virtual = drawTfLSignage(device, widgetWidth, widgetHeight, [], station_name, font_regular, font_bold)
 
             virtual.refresh()
+            # time.sleep(0.1)  # Small delay to avoid excessive CPU usage
 
     except KeyboardInterrupt:
         print("\nTfL Display stopped")
