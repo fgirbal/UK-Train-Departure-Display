@@ -55,13 +55,13 @@ def renderTfLDepartureRow(departure_info, font):
         
         # Draw platform after index
         x_pos = 10
-        if platform_display:
-            draw.text((x_pos, 0), text=platform_display, font=font, fill="yellow")
-            platform_width, _ = draw.textsize(platform_display, font)
-            x_pos += platform_width + 10  # Add some spacing
+        # if platform_display:
+        #     draw.text((x_pos, 0), text=platform_display, font=font, fill="yellow")
+        #     platform_width, _ = draw.textsize(platform_display, font)
+        #     x_pos += platform_width + 10  # Add some spacing
         
         # Draw destination after platform
-        draw.text((x_pos, 0), text=destination, font=font, fill="yellow")
+        draw.text((x_pos, 0), text=destination + f"({platform_display})", font=font, fill="yellow")
         
         # Calculate width for right-aligned time
         time_width, _ = draw.textsize(time_display, font)
