@@ -204,14 +204,12 @@ def main():
         timeNow = time.time()
         rotationStart = time.time()  # Track rotation timing
         lastRotationUpdate = 0  # Track when we last updated for rotation
-        lastTimeUpdate = 0  # Track when we last updated for time display
 
         print(f"TfL Departure Display started for {station_name}")
         print("Press Ctrl+C to stop")
 
         while True:
             timeNow = time.time()
-            needsUpdate = False
             
             # Refresh data every refreshTime seconds
             if(timeNow - timeAtStart >= config["refreshTime"]):
@@ -238,8 +236,6 @@ def main():
                         print(f"  {train_info['index']}. {train_info['destination']} - {train_info['time_display']}")
 
                 timeAtStart = time.time()
-                lastTimeUpdate = int(timeNow)
-                needsUpdate = True
             
             # Check if rotation position has changed (every 5 seconds)
             elif data[0] != False:
@@ -253,20 +249,8 @@ def main():
                     display_trains, display_indices = calculateDisplayTrains(departures, rotationStart)
                     virtual = drawTfLSignage(device, widgetWidth, widgetHeight, display_trains, station_name, font_regular, font_bold)
                     lastRotationUpdate = current_rotation_cycle
-                    needsUpdate = True
 
-            # Update display every second for time display
-            current_second = int(timeNow)
-            if current_second != lastTimeUpdate:
-                lastTimeUpdate = current_second
-                needsUpdate = True
-
-            # Only refresh display when something actually changed
-            if needsUpdate:
-                virtual.refresh()
-            
-            # Sleep briefly to avoid busy waiting
-            time.sleep(0.1)
+            virtual.refresh()
 
     except KeyboardInterrupt:
         print("\nTfL Display stopped")
